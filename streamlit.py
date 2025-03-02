@@ -8,7 +8,6 @@ import string
 import html
 from tensorflow.keras.models import load_model
 
-# Cache the model loading
 @st.cache_resource
 def load_resources():
     try:
@@ -43,7 +42,6 @@ def load_resources():
         st.error(f"Error loading resources: {str(e)}")
         return None, None, None, None, None
 
-# Load slangwords from CSV file
 def load_slangwords(file_path):
     try:
         slangwords = {}
@@ -60,13 +58,11 @@ def load_slangwords(file_path):
         st.warning(f"Could not load slangwords file: {str(e)}. Proceeding with empty dictionary.")
         return {}
 
-# Fix slangwords in text (to match training preprocessing)
 def fix_slangwords(text, slangwords_dict):
     words = text.split()
     fixed_words = [slangwords_dict[word.lower()] if word.lower() in slangwords_dict else word for word in words]
     return ' '.join(fixed_words)
 
-# Text preprocessing function (to match training preprocessing)
 def preprocess_text(text, slangwords_dict):
     text = text.lower()
     text = text.translate(str.maketrans('', '', string.punctuation))  # Remove punctuation
@@ -85,6 +81,11 @@ def predict_intent_and_response(user_input, model, label_encoder, text_vectorize
         # Make prediction
         prediction = model.predict(input_seq)
         predicted_class_index = np.argmax(prediction)
+        confidence = prediction[0][predicted_class_index]
+        
+        # Check confidence threshold
+        if confidence < 0.5:
+            return None, "Maaf, saya tidak dapat memahami pertanyaan Anda. Mohon ajukan pertanyaan ulang.", confidence
         
         # Get the predicted intent
         predicted_intent = label_encoder.inverse_transform([predicted_class_index])[0]
@@ -93,7 +94,7 @@ def predict_intent_and_response(user_input, model, label_encoder, text_vectorize
         response = intent_response_mapping.get(predicted_intent, 
             "Maaf, saya tidak dapat memahami pertanyaan Anda. Mohon ajukan pertanyaan dengan cara yang berbeda.")
         
-        return predicted_intent, response, prediction[0][predicted_class_index]
+        return predicted_intent, response, confidence
     except Exception as e:
         st.error(f"Error during prediction: {str(e)}")
         return None, "Terjadi kesalahan dalam memproses pertanyaan Anda. Silakan coba lagi.", 0.0
@@ -252,7 +253,6 @@ def main():
     
     local_css()
     
-    # Initialize session state
     if 'conversation' not in st.session_state:
         st.session_state.conversation = []
         # Add initial greeting message
